@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Путь KHAN — Система Дисциплины</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap');
+    
+    body { 
+      background-color: #050505;
+      color: #fafafa;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ШУМ УБРАН ДЛЯ СКОРОСТИ */
+
+    /* Скрытие скроллбара */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #050505; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #C5A059; }
+
+    html { scroll-behavior: smooth; }
+
+    /* Стили для Колеса */
+    .wheel-container {
+      perspective: 1000px;
+      height: 400px;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none; 
+    }
+    .wheel-container::-webkit-scrollbar { display: none; }
+    
+    .wheel-item {
+      scroll-snap-align: center;
+      transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      transform-origin: center center;
+    }
+
+    /* Эффект стекла */
+    .glass-nav {
+      background: rgba(5, 5, 5, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    /* Классы для анимации появления (Reveal) */
+    .reveal-section {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal-section.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useEffect, useState, useRef } = React;
+
+    // Компонент Иконки
+    const Icon = ({ name, size = 24, className = "" }) => (
+      <i data-lucide={name} className={className} style={{ width: size, height: size }} />
+    );
+
+    // --- КОМПОНЕНТ АНИМАЦИИ (Scroll Reveal) ---
+    const Reveal = ({ children, delay = 0 }) => {
+      const ref = useRef(null);
+      const [isVisible, setIsVisible] = useState(false);
+
+      useEffect(() => {
+        const observer = new IntersectionObserver(
+          ([entry]) => {
+            if (entry.isIntersecting) {
+              setIsVisible(true);
+              observer.unobserve(entry.target); // Анимируем только один раз
+            }
+          },
+          { threshold: 0.1, rootMargin: "0px 0px -50px 0px" } 
+        );
+        if (ref.current) observer.observe(ref.current);
+        return () => { if (ref.current) observer.unobserve(ref.current); };
+      }, []);
+
+      return (
+        <div 
+          ref={ref} 
+          className={`reveal-section ${isVisible ? 'is-visible' : ''}`}
+          style={{ transitionDelay: `${delay}ms` }}
+        >
+          {children}
+        </div>
+      );
+    };
+
+    // --- ОСНОВНЫЕ КОМПОНЕНТЫ ---
+
+    const Navbar = () => {
+      const [activeId, setActiveId] = useState('hero');
+
+      useEffect(() => {
+        const handleScroll = () => {
+          const sections = ['hero', 'archive', 'chaos', 'reviews', 'about'];
+          for (const section of sections) {
+            const el = document.getElementById(section);
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              if (rect.top >= -300 && rect.top <= 400) {
+                setActiveId(section);
+                break;
+              }
+            }
+          }
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+      }, []);
+
+      const navItems = [
+        { id: 'hero', label: 'СТАРТ' },
+        { id: 'about', label: 'KHAN' },
+        { id: 'archive', label: 'РАЗБОРЫ' },
+        { id: 'chaos', label: 'ДИАГНОЗ' },
+        { id: 'reviews', label: 'ОТЗЫВЫ' }
+      ];
+
+      return (
+        <nav className="fixed top-0 left-0 w-full z-50 glass-nav h-16 md:h-20 flex items-center justify-center transition-all duration-300">
+          <div className="flex gap-4 md:gap-10 overflow-x-auto px-4 w-full justify-center scrollbar-hide">
+            {navItems.map(item => (
+              <a 
+                key={item.id}
+                href={`#${item.id}`}
+                className={`relative text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 py-2 flex-shrink-0
+                  ${activeId === item.id ? 'text-[#C5A059] scale-105' : 'text-zinc-600 hover:text-zinc-300'}`}
+              >
+                {item.label}
+                {activeId === item.id && (
+                  <span className="absolute -bottom-1 left-0 w-full h-[2px] bg-[#C5A059] shadow-[0_0_10px_rgba(197,160,89,0.5)] animate-pulse" />
+                )}
+              </a>
+            ))}
+          </div>
+        </nav>
+      );
+    };
+
+    // Колесо с расширенным списком
+    const ArchiveWheel = () => {
+      const topics = [
+        "Биология саботажа: как мозг блокирует рост",
+        "Протокол 'Диктатура стандарта'",
+        "Внутренняя опора: репутация перед собой",
+        "Ловушка мотивации для слабых",
+        "Механика дофаминовой чистки",
+        "Решения в состоянии хаоса",
+        "Почему ты беден: нейрофизиология долгов",
+        "Страх — это компас: иди в боль",
+        "Как убить внутреннего нытика за 3 секунды",
+        "Окружение: кто тянет тебя на дно",
+        "Энергия агрессии: трансформация в результат",
+        "Иллюзия контроля: почему планы не работают"
+      ];
+
+      const containerRef = useRef(null);
+      const [activeIndex, setActiveIndex] = useState(0);
+
+      const handleScroll = () => {
+        if (!containerRef.current) return;
+        const container = containerRef.current;
+        const center = container.scrollTop + container.clientHeight / 2;
+        const items = container.getElementsByClassName('wheel-item');
+        
+        let closestIndex = 0;
+        let minDiff = Infinity;
+
+        Array.from(items).forEach((item, index) => {
+          const itemCenter = item.offsetTop + item.clientHeight / 2;
+          const diff = Math.abs(center - itemCenter);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIndex = index;
+          }
+        });
+        setActiveIndex(closestIndex);
+      };
+
+      return (
+        <section id="archive" className="w-full max-w-xl mx-auto mb-20 px-2 relative pt-20">
+          <Reveal>
+            <div className="flex items-center gap-4 mb-10 ml-2">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.5em] text-white whitespace-nowrap">Последние аудио разборы</h3>
+              <div className="h-[1px] w-full bg-zinc-800/50" />
+            </div>
+
+            <div className="relative h-[400px] w-full overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-[#050505] to-transparent z-10 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-[#050505] to-transparent z-10 pointer-events-none" />
+              
+              <div className="absolute top-1/2 left-0 w-full h-[90px] -translate-y-1/2 border-y border-[#C5A059]/10 bg-[#C5A059]/5 pointer-events-none z-0 rounded-xl" />
+
+              <div 
+                ref={containerRef}
+                onScroll={handleScroll}
+                className="wheel-container px-2 py-[150px]" 
+              >
+                {topics.map((topic, i) => {
+                  const isActive = i === activeIndex;
+                  return (
+                    <div 
+                      key={i}
+                      className={`wheel-item h-[80px] mb-4 flex items-center justify-between px-6 rounded-2xl border transition-all duration-500
+                        ${isActive 
+                          ? 'bg-zinc-900 border-[#C5A059]/30 opacity-100 scale-100 blur-0 shadow-[0_0_30px_rgba(197,160,89,0.05)]' 
+                          : 'bg-transparent border-transparent opacity-30 scale-90 blur-[1px]'}`}
+                    >
+                       <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors
+                            ${isActive ? 'border-[#C5A059] text-[#C5A059]' : 'border-zinc-700 text-zinc-700'}`}>
+                            <Icon name="play" size={12} className="fill-current" />
+                          </div>
+                          <span className={`font-bold text-[13px] md:text-[14px] leading-tight transition-colors ${isActive ? 'text-white' : 'text-zinc-500'}`}>
+                            {topic}
+                          </span>
+                       </div>
+                       <Icon name="lock" size={16} className={isActive ? 'text-zinc-500' : 'text-zinc-800'} />
+                    </div>
+                  );
+                })}
+                <div className="h-[120px]"></div>
+              </div>
+            </div>
+          </Reveal>
+        </section>
+      );
+    };
+
+    // Анализ хаоса (GEMINI для NETLIFY)
+    const ChaosAnalyzer = () => {
+      const [query, setQuery] = useState("");
+      const [response, setResponse] = useState("");
+      const [loading, setLoading] = useState(false);
+
+      const handleAnalyze = async () => {
+        if (!query.trim()) return;
+        setLoading(true);
+        setResponse("");
+
+        try {
+          // --- ИСПРАВЛЕНА ССЫЛКА ДЛЯ NETLIFY ---
+          const res = await fetch('/.netlify/functions/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+          });
+
+          const data = await res.json();
+          
+          if (data.result) {
+            setResponse(data.result);
+          } else {
+            setResponse("Система перегружена. Твой хаос слишком банален. Просто иди в канал.");
+          }
+        } catch (error) {
+          console.error(error);
+          setResponse("Ошибка связи с Системой. Это знак, что пора действовать, а не спрашивать.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <section id="chaos" className="w-full max-w-xl mb-24 relative z-10 px-2">
+          <Reveal delay={200}>
+            <div className="bg-zinc-900/40 p-8 md:p-10 rounded-[3rem] border border-[#C5A059]/20 backdrop-blur-md shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#C5A059] opacity-5 blur-[80px] group-hover:opacity-10 transition-opacity" />
+
+              <div className="flex items-center gap-3 mb-8 text-[#C5A059] relative z-10">
+                <Icon name="sparkles" size={24} />
+                <h3 className="text-[11px] font-black uppercase tracking-[0.5em]">Анализ твоего хаоса</h3>
+              </div>
+
+              <div className="space-y-6 relative z-10">
+                <textarea
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Опиши свою главную слабость. Будь честен... (Например: я знаю что делать, но лежу и смотрю рилс)"
+                  className="w-full bg-black/60 border border-zinc-800 rounded-2xl p-6 text-lg text-white placeholder:text-zinc-700 focus:border-[#C5A059] focus:bg-black/80 outline-none transition-all h-40 resize-none shadow-inner font-medium"
+                />
+
+                <button
+                  onClick={handleAnalyze}
+                  disabled={loading || !query}
+                  className="w-full py-6 bg-[#C5A059] text-black font-black rounded-2xl text-sm uppercase tracking-[0.3em] flex items-center justify-center gap-4 hover:bg-[#d4ae65] hover:shadow-[0_0_30px_rgba(197,160,89,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                >
+                  {loading ? <Icon name="loader-2" size={24} className="animate-spin" /> : <Icon name="zap" size={20} />}
+                  {loading ? "Сканирование..." : "Вскрыть ложь"}
+                </button>
+
+                <div className={`mt-10 p-8 bg-black/80 border border-zinc-800 rounded-[2rem] transition-all duration-700 ${response ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 hidden'}`}>
+                  <div className="flex gap-2 mb-4 items-center text-[#C5A059]">
+                    <Icon name="terminal" size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-[0.5em]">Вердикт Системы:</span>
+                  </div>
+                  <p className="text-lg md:text-xl font-bold leading-relaxed italic text-zinc-100 whitespace-pre-wrap">
+                    {response}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </section>
+      );
+    };
+
+    const App = () => {
+      const [isPageLoaded, setIsPageLoaded] = useState(false);
+      const [openFaq, setOpenFaq] = useState(-1);
+
+      useEffect(() => {
+        setIsPageLoaded(true);
+        if (window.lucide) window.lucide.createIcons();
+      }, []);
+
+      useEffect(() => {
+        if (window.lucide) window.lucide.createIcons();
+      });
+
+      const reviews = [
+        {
+          name: "Айнаш", age: "Мастер по эпиляции",
+          text: "Уже неделю прохожу программу. У меня появились новые привычки и мне они так нравятся. Программа мне заходит легко и без напряга. А самое главное я чувствую изменения внутри🙌 Я с радостью просыпаюсь чтобы делать новые задания. Программа не дорогая, а информация в ней дороже золото. Благодарю Хан🫶💪",
+          img: "https://i.imgur.com/jmQf84a.jpg"
+        },
+        {
+          name: "Андрей", age: "32 года",
+          text: "Я наконец перестал обещать себе 'начать'. В канале я понял, что дисциплина — это не пытка, а свобода от вечных раздумий. Деньги пошли в рост просто потому, что я стал делать задачи, а не обдумывать их.",
+          img: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop"
+        },
+        {
+          name: "Мария", age: "27 лет",
+          text: "Самое ценное — это ясность. Раньше каждый день был как в тумане. Теперь у меня есть железный стандарт, и я чувствую силу, когда его выполняю. Это состояние стоит намного дороже 1490 рублей.",
+          img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop"
+        },
+        {
+          name: "Кирилл", age: "29 лет",
+          text: "Я думал, что я ленивый по жизни. В KHAN мне объяснили, что я просто раб своей лимбики. Протокол 21 день — это лучшее, что случалось с моей продуктивностью за всю жизнь.",
+          img: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200&h=200&fit=crop"
+        },
+        {
+          name: "Иван", age: "35 лет",
+          text: "Жесткие аудио KHAN — это как холодный душ в 5 утра. Никаких соплей. Либо ты делаешь, либо ты никто. Эта простая мысль сэкономила мне годы метаний.",
+          img: "https://images.unsplash.com/photo-1552058544-f2b08422138a?w=200&h=200&fit=crop"
+        }
+      ];
+
+      const packageItems = [
+        { title: "Протокол KHAN 21", desc: "Пошаговый алгоритм выхода из кризиса и установки новой дисциплины." },
+        { title: "База 100+ разборов", desc: "Доступ ко всем аудио-лекциям по механике мозга и психологии силы." },
+        { title: "Личная консультация", desc: "Разбор твоего затыка лично со мной в первые 3 дня после вступления." },
+        { title: "Закрытое окружение", desc: "Сообщество людей, которые уже не ищут оправданий." }
+      ];
+
+      const faqs = [
+        { q: "Это только для мужчин?", a: "Нет. Механика мозга одинакова для всех. Дисциплина, уверенность и работа над собой не имеют пола. В канале есть как мужчины, так и женщины, нацеленные на рост." },
+        { q: "Что я получу сразу после оплаты?", a: "Мгновенный доступ ко всем прошлым разборам, включая самый свежий, и пошаговую инструкцию по внедрению системы «KHAN» в свою жизнь." },
+        { q: "Как можно оплатить?", a: "Оплатить можно с любой карты мира: Visa, MasterCard, а также картами российских банков." },
+        { q: "Как отменить подписку?", a: "В любое время через личный кабинет платежной системы Tribute. Никаких скрытых условий." }
+      ];
+
+      const handlePayment = () => {
+        window.location.href = "https://t.me/tribute/app?startapp=sExW";
+      };
+
+      return (
+        <div className={`min-h-screen flex flex-col items-center pb-20 transition-opacity duration-1000 ${isPageLoaded ? "opacity-100" : "opacity-0"}`}>
+          
+          <Navbar />
+
+          {/* HERO SECTION */}
+          <div id="hero" className="w-full relative flex flex-col items-center pt-32 pb-20">
+             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[800px] bg-gradient-to-b from-zinc-800/20 via-transparent to-[#050505] pointer-events-none z-0" />
+             
+             <header className="max-w-2xl w-full text-center relative z-10 px-4 reveal-section is-visible">
+              <div className="inline-block mb-8 px-5 py-2 rounded-full border border-zinc-800 bg-zinc-900/80 backdrop-blur shadow-2xl">
+                <span className="text-[#C5A059] uppercase tracking-[0.4em] text-[10px] font-black italic">
+                  Твоя новая личность начинается здесь
+                </span>
+              </div>
+              <h1 className="text-5xl md:text-8xl font-light tracking-tighter uppercase italic leading-none mb-8 text-white drop-shadow-2xl">
+                ПУТЬ <span className="text-[#C5A059] font-black not-italic">KHAN</span>
+              </h1>
+              <p className="text-zinc-200 text-xl md:text-2xl font-bold tracking-tight max-w-xl mx-auto leading-snug">
+                Ты пришел сюда не за информацией. Ты пришел за{" "}
+                <span className="text-[#C5A059] italic underline decoration-1 underline-offset-8 decoration-[#C5A059]/50">другим собой</span>.
+              </p>
+            </header>
+          </div>
+
+          {/* ABOUT KHAN (НАВЕРХУ) */}
+          <Reveal>
+            <section id="about" className="w-full max-w-xl mb-20 px-2 relative z-10 pt-10">
+              <div className="flex items-center gap-4 mb-8">
+                <h3 className="text-[11px] font-black text-white uppercase tracking-[0.5em] whitespace-nowrap">
+                  Обо мне
+                </h3>
+                <div className="h-[1px] w-full bg-zinc-800" />
+              </div>
+
+              <div className="bg-zinc-900/60 border border-zinc-800 rounded-[2.5rem] p-8 md:p-10 shadow-2xl">
+                <div className="flex items-center gap-6 mb-8">
+                  <img
+                    src="https://i.imgur.com/QiUppwZ.jpg"
+                    alt="KHAN"
+                    className="w-20 h-20 rounded-[2rem] border border-zinc-700 object-cover shadow-xl"
+                    loading="lazy"
+                  />
+                  <div>
+                    <div className="text-xl font-black uppercase italic tracking-tight text-white">
+                      KHAN
+                    </div>
+                    <div className="text-zinc-500 text-sm font-bold uppercase tracking-widest mt-1">
+                      Создатель системы «Путь KHAN»
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-zinc-200 text-[15px] md:text-[16px] leading-relaxed font-medium mb-5">
+                  С конца 2024 до мая 2025 я был на дне. Я потерял бизнес, отношения, деньги. Остались долги и пустота.
+                  И самое страшное — когда ты понимаешь: проблема уже не в мире. Проблема в тебе.
+                </p>
+
+                <p className="text-zinc-200 text-[15px] md:text-[16px] leading-relaxed font-medium mb-5">
+                  Я встал и начал делать шаги. Без вдохновения. Без «поймать настроение». Я выстроил систему,
+                  которая вытаскивает даже тогда, когда тебя самого не хватает.
+                </p>
+
+                <div className="bg-black/60 border border-[#C5A059]/25 rounded-[2rem] p-6 mb-7">
+                  <div className="text-[#C5A059] text-[10px] font-black uppercase tracking-[0.5em] mb-3">
+                    Результат
+                  </div>
+                  <div className="text-white text-[17px] md:text-[18px] font-black italic leading-relaxed">
+                    «Протокол 21 день Перезагрузки» + закрытая система «Путь KHAN».
+                  </div>
+                </div>
+
+                <p className="text-zinc-200 text-[15px] md:text-[16px] leading-relaxed font-medium mb-6">
+                  Сегодня меня смотрят миллионы в TikTok и Instagram. Но то, что ты видишь там — это верхушка айсберга.
+                  Самое главное происходит внутри закрытого канала: ежедневные разборы, задания и жёсткая настройка твоего режима.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                  <div className="bg-zinc-950/50 border border-zinc-800 rounded-[1.7rem] p-5 text-left">
+                    <div className="text-[#C5A059] text-[10px] font-black uppercase tracking-[0.45em] mb-2">Фокус</div>
+                    <div className="text-white font-black text-[13px] leading-snug">Чтобы ты делал, а не думал</div>
+                  </div>
+                  <div className="bg-zinc-950/50 border border-zinc-800 rounded-[1.7rem] p-5 text-left">
+                    <div className="text-[#C5A059] text-[10px] font-black uppercase tracking-[0.45em] mb-2">Дисциплина</div>
+                    <div className="text-white font-black text-[13px] leading-snug">Чтобы не было откатов</div>
+                  </div>
+                  <div className="bg-zinc-950/50 border border-zinc-800 rounded-[1.7rem] p-5 text-left">
+                    <div className="text-[#C5A059] text-[10px] font-black uppercase tracking-[0.45em] mb-2">Опора</div>
+                    <div className="text-white font-black text-[13px] leading-snug">Чтобы ты уважал себя</div>
+                  </div>
+                </div>
+
+                <p className="text-zinc-200 text-[15px] md:text-[16px] leading-relaxed font-medium mt-7">
+                  Больше 1000 людей по всему миру уже поднялись через эту систему: вышли из апатии, тревоги и внутреннего хаоса
+                  и снова начали жить в действиях.
+                </p>
+              </div>
+            </section>
+          </Reveal>
+
+          {/* BENEFITS */}
+          <Reveal>
+            <div className="w-full max-w-xl mb-24 px-4 text-center z-10">
+              <h2 className="text-zinc-500 uppercase tracking-[0.4em] text-[11px] font-black mb-12 italic">
+                Кем ты станешь через 21 день?
+              </h2>
+              <div className="grid grid-cols-1 gap-12 text-left">
+                  <div className="flex gap-6 items-start group">
+                    <div className="mt-1 bg-zinc-900 p-3 rounded-2xl border border-zinc-800 group-hover:border-[#C5A059] group-hover:shadow-[0_0_20px_rgba(197,160,89,0.15)] transition-all duration-500">
+                      <Icon name="anchor" size={24} className="text-[#C5A059]" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black uppercase italic mb-2 tracking-tight text-white group-hover:text-[#C5A059] transition-colors">Человек-кремень</h4>
+                      <p className="text-zinc-400 leading-relaxed font-medium">
+                        Решения больше не зависят от настроения. Ты делаешь то, что должен, даже когда мир вокруг рушится.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-6 items-start group">
+                    <div className="mt-1 bg-zinc-900 p-3 rounded-2xl border border-zinc-800 group-hover:border-[#C5A059] group-hover:shadow-[0_0_20px_rgba(197,160,89,0.15)] transition-all duration-500">
+                      <Icon name="trending-up" size={24} className="text-[#C5A059]" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black uppercase italic mb-2 tracking-tight text-white group-hover:text-[#C5A059] transition-colors">Архитектор капитала</h4>
+                      <p className="text-zinc-400 leading-relaxed font-medium">
+                        Деньги — побочный эффект дисциплины. Ты видишь возможности и забираешь их.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-6 items-start group">
+                    <div className="mt-1 bg-zinc-900 p-3 rounded-2xl border border-zinc-800 group-hover:border-[#C5A059] group-hover:shadow-[0_0_20px_rgba(197,160,89,0.15)] transition-all duration-500">
+                      <Icon name="target" size={24} className="text-[#C5A059]" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black uppercase italic mb-2 tracking-tight text-white group-hover:text-[#C5A059] transition-colors">Хозяин своей головы</h4>
+                      <p className="text-zinc-400 leading-relaxed font-medium">
+                        Страх, лень и прокрастинация — сигналы, которые ты игнорируешь на пути к цели.
+                      </p>
+                    </div>
+                  </div>
+              </div>
+            </div>
+          </Reveal>
+
+          {/* PACKAGE DETAILS */}
+          <Reveal delay={100}>
+            <div className="w-full max-w-xl mb-24 px-6 z-10">
+                <div className="bg-zinc-900/30 p-10 rounded-[3rem] border border-zinc-800 shadow-2xl relative">
+                  <div className="absolute -top-4 left-10 bg-[#050505] border border-zinc-700 px-6 py-2 rounded-full">
+                    <span className="text-[#C5A059] uppercase tracking-[0.3em] text-[10px] font-black">
+                      Что ты забираешь из системы:
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-8 mt-4">
+                    {packageItems.map((item, i) => (
+                      <div key={i} className="flex gap-4">
+                        <Icon name="check-circle-2" size={20} className="text-[#C5A059] shrink-0 mt-1" />
+                        <div>
+                          <h5 className="text-white font-black uppercase italic tracking-tight mb-1">{item.title}</h5>
+                          <p className="text-zinc-500 text-sm font-medium leading-relaxed">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+            </div>
+          </Reveal>
+
+          {/* STATS */}
+          <Reveal>
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-2xl mb-20 border-y border-zinc-800 py-10 relative z-10">
+              <div className="text-center px-4">
+                <div className="text-white text-4xl font-light tracking-tighter mb-1">100+</div>
+                <div className="text-[10px] text-zinc-400 uppercase tracking-[0.3em] font-black tracking-widest">
+                  Аудио-разборов
+                </div>
+              </div>
+              <div className="text-center px-4 md:border-x border-zinc-800">
+                <div className="text-[#C5A059] text-4xl font-light tracking-tighter mb-1">1000+</div>
+                <div className="text-[10px] text-zinc-400 uppercase tracking-[0.3em] font-black tracking-widest">
+                  Участников
+                </div>
+              </div>
+              <div className="text-center px-4">
+                <div className="text-white text-4xl font-light tracking-tighter mb-1">21</div>
+                <div className="text-[10px] text-zinc-400 uppercase tracking-[0.3em] font-black tracking-widest">
+                  День Перезагрузки
+                </div>
+              </div>
+            </section>
+          </Reveal>
+
+          {/* ARCHIVE WHEEL */}
+          <ArchiveWheel />
+
+          {/* GEMINI CHAOS ANALYSIS (BACKEND) */}
+          <ChaosAnalyzer />
+
+          {/* REVIEWS HEADER */}
+          <Reveal>
+            <div id="reviews" className="w-full max-w-xl mb-12 px-2 text-center relative z-10 pt-10">
+              <h3 className="text-white text-3xl font-black uppercase italic tracking-tighter">Отзывы реальных участников</h3>
+              <p className="text-zinc-500 text-sm mt-4 uppercase tracking-[0.4em] font-medium">
+                Голоса тех, кто уже выбрал Путь
+              </p>
+            </div>
+          </Reveal>
+
+          {/* REVIEWS LIST */}
+          <section className="w-full max-w-xl mb-24 px-2 relative z-10">
+            <div className="grid grid-cols-1 gap-8">
+              {reviews.map((review, i) => (
+                <Reveal key={i} delay={i * 100}>
+                  <div className="bg-zinc-900/40 p-10 rounded-[3rem] border border-zinc-800 hover:border-[#C5A059]/40 transition-all duration-700 shadow-2xl group w-full">
+                      <div className="flex items-center gap-6 mb-8">
+                        <img
+                          src={review.img}
+                          alt={review.name}
+                          className="w-20 h-20 rounded-[2rem] border-2 border-zinc-800 shadow-xl object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
+                        />
+                        <div>
+                          <div className="text-xl font-black text-white italic">
+                            {review.name} <span className="text-zinc-600 font-normal ml-3">| {review.age}</span>
+                          </div>
+                          <div className="flex gap-1.5 mt-2">
+                            {[...Array(5)].map((_, idx) => (
+                              <Icon key={idx} name="star" size={12} className="text-[#C5A059]" />
+                            ))}
+                          </div>
+                        </div>
+                        <Icon name="quote" size={56} className="ml-auto text-zinc-800 group-hover:text-[#C5A059]/10 transition-colors" />
+                      </div>
+                      <p className="text-zinc-200 text-xl leading-relaxed italic font-medium">"{review.text}"</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </section>
+
+          {/* FOOTER & FAQ */}
+          <footer className="w-full max-w-xl text-center mb-28 relative z-10 px-2">
+            <Reveal>
+              <div className="mb-8">
+                <p className="text-white text-lg md:text-xl font-black px-4 leading-relaxed tracking-tight">
+                  1490 ₽ — это не цена подписки. Это плата за твое завтра.
+                </p>
+                <div className="mt-4 text-zinc-500 text-[11px] uppercase tracking-[0.45em] font-black">
+                  Доступ на 30 дней • Отмена в любой момент
+                </div>
+              </div>
+
+              <button 
+                onClick={handlePayment}
+                className="w-full py-8 rounded-[2rem] font-black uppercase tracking-[0.35em] text-[14px] md:text-[15px]
+                          bg-gradient-to-b from-white to-zinc-200 text-black
+                          shadow-[0_30px_110px_rgba(255,255,255,0.20)]
+                          hover:shadow-[0_40px_140px_rgba(197,160,89,0.22)]
+                          active:scale-[0.97] transition-all flex items-center justify-center gap-5 group relative overflow-hidden"
+              >
+                <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ background: "radial-gradient(circle at 50% 0%, rgba(197,160,89,0.22), transparent 55%)" }} />
+                <span className="relative">Вступить в Путь KHAN</span>
+                <Icon name="arrow-right" size={26} className="relative group-hover:translate-x-2 transition-transform duration-300" />
+              </button>
+
+              <div className="flex flex-col items-center gap-8 mt-8">
+                <div className="flex items-center gap-10 text-zinc-500">
+                  <div className="flex items-center gap-2.5 uppercase text-[10px] font-black tracking-[0.2em] hover:text-[#C5A059] transition-colors">
+                    <Icon name="shield-check" size={14} className="text-[#C5A059]" /> Безопасная Оплата
+                  </div>
+                  <div className="flex items-center gap-2.5 uppercase text-[10px] font-black tracking-[0.2em] hover:text-[#C5A059] transition-colors">
+                    <Icon name="headphones" size={14} className="text-[#C5A059]" /> Поддержка 24/7
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-16 text-left">
+                <div className="flex items-center gap-4 mb-8">
+                  <h3 className="text-[11px] font-black text-white uppercase tracking-[0.5em] whitespace-nowrap">
+                    Частые вопросы
+                  </h3>
+                  <div className="h-[1px] w-full bg-zinc-800" />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {faqs.map((item, idx) => (
+                    <div key={idx} className="bg-zinc-950/60 border border-zinc-800 rounded-[1.5rem] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+                      <button
+                        type="button"
+                        onClick={() => setOpenFaq(openFaq === idx ? -1 : idx)}
+                        className="w-full flex items-center justify-between gap-6 text-left px-6 py-5"
+                      >
+                        <div className="text-white font-black tracking-tight text-[16px] md:text-[17px]">
+                          {item.q}
+                        </div>
+                        <span className="text-[#C5A059] text-[18px] font-black leading-none select-none">
+                          {openFaq === idx ? "–" : "+"}
+                        </span>
+                      </button>
+                      <div
+                        className={
+                          "px-6 pb-6 text-zinc-300 font-medium leading-relaxed transition-all duration-500 " +
+                          (openFaq === idx ? "max-h-[420px] opacity-100" : "max-h-0 opacity-0 pb-0")
+                        }
+                        style={{ overflow: "hidden" }}
+                      >
+                        <div className="pt-1">{item.a}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          </footer>
+
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
